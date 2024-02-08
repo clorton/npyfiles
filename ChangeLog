@@ -1,3 +1,14 @@
+2024-02-08 Christopher Lorton <inbox@lortons.net>
+
+    * DESCRIPTION (Version, Date): Release 0.3.0
+
+	* src/cnpy.h (NpyArray): include data type and element count
+	* src/cnpy.h (parse_npy_header): return data type
+	* src/cnpy.h (parse_npy_gzheader): return data type
+	* src/cnpy.cpp (parse_npy_header): return data type
+	* src/cnpy.cpp (parse_npy_gzheader): return data type
+	* src/cnpyMod.cpp (cwlLoad): handle word sizes 1/2/4 for integer types and 4 for floating point
+
 2023-11-27  Dirk Eddelbuettel  <edd@debian.org>
 
 	* DESCRIPTION (Version, Date): Release 0.2.12

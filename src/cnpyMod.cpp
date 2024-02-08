@@ -23,7 +23,7 @@
 #include "cnpy.h"               // (local copy of) header for cnpy library
 
 template <typename T>
-T transpose(const T & m) {      // tranpose for IntegerMatrix / NumericMatrix, see array.c in R
+T transpose(const T & m) {      // transpose for IntegerMatrix / NumericMatrix, see array.c in R
     int k = m.rows(), n = m.cols();
     //Rcpp::Rcout << "Transposing " << n << " by " << k << std::endl;
     T z(n, k);
@@ -44,6 +44,196 @@ bool hasEnding(std::string const &full, std::string const &ending) {
     } else {
         return false;
     }
+}
+
+template<typename F, typename T>
+T* fromto(F* data, size_t count) {
+    T* result = new T[count];
+    for (size_t i = 0; i < count; ++i) {
+        result[i] = T(data[i]);
+    }
+    return result;
+}
+
+// Determine type from the loaded file (double or int64)
+// Decide to transpose by the file fortran_order.
+Rcpp::RObject cwlLoad(const std::string& filename) {
+
+    cnpy::NpyArray arr;
+
+    if (hasEnding(filename, ".gz")) {
+        arr = cnpy::npy_gzload(filename);
+    } else {
+        arr = cnpy::npy_load(filename);
+    }
+
+    SEXP ret = R_NilValue;      		// allows us to assign either int or numeric 
+
+    // Vector (one dimension)
+    if ((arr.shape.size() == 1) || (arr.shape.size() == 2)) {
+        switch (arr.dtype) {
+            case 'f':
+                {
+                    switch (arr.word_size) {
+                        case 4: // float32
+                            {
+                                size_t count = arr.count();
+                                double *doubles = new double[count];
+                                float* source = (float*)(arr.data);
+                                for (size_t i = 0; i < count; ++i) {
+                                    // TODO - consider endian-ness here...
+                                    doubles[i] = double(source[i]);
+                                }
+                                delete[] arr.data;
+                                arr.data = (char*)doubles;
+                            }
+                            break;
+                        case 8:
+                            // No transformation necessary.
+                            break;
+                        case 2: // float16?
+                        case 1: // ???
+                        default:
+                            arr.destruct();
+                            Rf_error("Unsupported data size in NumPy file");
+                    }
+                    double* data = (double*)(arr.data);
+                    if (arr.shape.size() == 1) {
+                        ret = Rcpp::NumericVector(data, data + arr.shape[0]);
+                    }
+                    else {
+                        ret = Rcpp::NumericMatrix(arr.shape[0], arr.shape[1], data);
+                    }
+                }
+                break;
+            case 'i':
+                {
+                    switch (arr.word_size) {
+                        case 1: // int8
+                            {
+                                size_t count = arr.count();
+                                int64_t* integers = new int64_t[count];
+                                int8_t* source = (int8_t*)(arr.data);
+                                for (size_t i = 0; i < count; ++i) {
+                                    // TODO - consider endian-ness here...
+                                    integers[i] = int64_t(source[i]);
+                                }
+                                delete[] arr.data;
+                                arr.data = (char *)integers;
+                            }
+                            break;
+                        case 2: // int16
+                            {
+                                size_t count = arr.count();
+                                int64_t* integers = new int64_t[count];
+                                int16_t* source = (int16_t*)(arr.data);
+                                for (size_t i = 0; i < count; ++i) {
+                                    // TODO - consider endian-ness here...
+                                    integers[i] = int64_t(source[i]);
+                                }
+                                delete[] arr.data;
+                                arr.data = (char*)integers;
+                            }
+                            break;
+                        case 4: // int32
+                            {
+                                size_t count = arr.count();
+                                int64_t* integers = new int64_t[count];
+                                int32_t* source = (int32_t*)(arr.data);
+                                for (size_t i = 0; i < count; ++i) {
+                                    // TODO - consider endian-ness here...
+                                    integers[i] = int64_t(source[i]);
+                                }
+                                delete[] arr.data;
+                                arr.data = (char*)integers;
+                            }
+                            break;
+                        case 8: // int64
+                            // No transformation necessary.
+                            break;
+                        default:
+                            arr.destruct();
+                            Rf_error("Unsupported data size in NumPy file");
+                    }
+                    int64_t* data = (int64_t*)(arr.data);
+                    if (arr.shape.size() == 1) {
+                        ret = Rcpp::IntegerVector(data, data + arr.shape[0]);
+                    }
+                    else {
+                        ret = Rcpp::IntegerMatrix(arr.shape[0], arr.shape[1], data);
+                    }
+                }
+                break;
+            case 'u':
+                {
+                    switch (arr.word_size) {
+                        case 1: // int8
+                            {
+                                size_t count = arr.count();
+                                int64_t* integers = new int64_t[count];
+                                uint8_t* source = (uint8_t*)(arr.data);
+                                for (size_t i = 0; i < count; ++i) {
+                                    // TODO - consider endian-ness here...
+                                    integers[i] = int64_t(source[i]);
+                                }
+                                delete[] arr.data;
+                                arr.data = (char*)integers;
+                            }
+                            break;
+                        case 2: // int16
+                            {
+                                size_t count = arr.count();
+                                int64_t* integers = new int64_t[count];
+                                uint64_t* source = (uint64_t*)(arr.data);
+                                for (size_t i = 0; i < count; ++i) {
+                                    // TODO - consider endian-ness here...
+                                    integers[i] = int64_t(source[i]);
+                                }
+                                delete[] arr.data;
+                                arr.data = (char*)integers;
+                            }
+                            break;
+                        case 4: // int32
+                            {
+                                size_t count = arr.count();
+                                int64_t* integers = new int64_t[count];
+                                uint32_t* source = (uint32_t*)(arr.data);
+                                for (size_t i = 0; i < count; ++i) {
+                                    // TODO - consider endian-ness here...
+                                    integers[i] = int64_t(source[i]);
+                                }
+                                delete[] arr.data;
+                                arr.data = (char*)integers;
+                            }
+                            break;
+                        case 8: // int64
+                            // No transformation necessary.
+                            break;
+                        default:
+                            arr.destruct();
+                            Rf_error("Unsupported data size in NumPy file");
+                    }
+                    int64_t* data = (int64_t*)(arr.data);
+                    if (arr.shape.size() == 1) {
+                        ret = Rcpp::IntegerVector(data, data + arr.shape[0]);
+                    }
+                    else {
+                        ret = Rcpp::IntegerMatrix(arr.shape[0], arr.shape[1], data);
+                    }
+                }
+                break;
+            default:
+                arr.destruct();
+                Rf_error("Unsupported data type in NumPy file");
+                break;
+        }
+    // We don't handle higher dimensional data (three+)
+    } else {
+        arr.destruct();
+        Rf_error("Unsupported dimension in cwlLoad");
+    }
+    arr.destruct();
+    return ret;
 }
 
 Rcpp::RObject npyLoad(const std::string & filename, const std::string & type, const bool dotranspose) { 
@@ -81,7 +271,7 @@ Rcpp::RObject npyLoad(const std::string & filename, const std::string & type, co
 #ifdef WORDS_BIGENDIAN
             std::transform(p, p + shape[0] * shape[1], p, swap_endian<double>);
 #endif
-            // invert dimension for creation, and then tranpose to correct Fortran-vs-C storage
+            // invert dimension for creation, and then transpose to correct Fortran-vs-C storage
             if (dotranspose) {
                 ret = transpose(Rcpp::NumericMatrix(shape[1], shape[0], p));
             } else {
@@ -92,7 +282,7 @@ Rcpp::RObject npyLoad(const std::string & filename, const std::string & type, co
 #ifdef WORDS_BIGENDIAN
             std::transform(p, p + shape[0] * shape[1], p, swap_endian<int64_t>);
 #endif
-            // invert dimension for creation, and then tranpose to correct Fortran-vs-C storage
+            // invert dimension for creation, and then transpose to correct Fortran-vs-C storage
             if (dotranspose) {
                 ret = transpose(Rcpp::IntegerMatrix(shape[1], shape[0], p));
             } else {
@@ -194,15 +384,20 @@ RCPP_MODULE(cnpy){
 
     using namespace Rcpp;
 
-    function("npyLoad",         		// name of the identifier at the R level
-             &npyLoad,          		// function pointer to helper function defined above
+    function("npyLoad",         		        // name of the identifier at the R level
+             &npyLoad,          		        // function pointer to helper function defined above
              List::create( Named("filename"),   // function arguments including default value
                            Named("type") = "numeric",
                            Named("dotranspose") = true),
              "read an npy file into a numeric or integer vector or matrix");
 
-    function("npySave",         		// name of the identifier at the R level
-             &npySave,          		// function pointer to helper function defined above
+    function("cwlLoad",         		        // name of the identifier at the R level
+             &cwlLoad,          		        // function pointer to helper function defined above
+             List::create( Named("filename")),  // function arguments including default value
+             "read an npy file into a numeric (floating point) or integer vector or matrix");
+
+    function("npySave",         		        // name of the identifier at the R level
+             &npySave,          		        // function pointer to helper function defined above
              List::create( Named("filename"),   // function arguments including default value
                            Named("object"), 
                            Named("mode") = "w",

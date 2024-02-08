@@ -51,9 +51,11 @@ namespace cnpy {
 
     struct NpyArray {
         char* data;
-        std::vector<unsigned int> shape;
+        char dtype;
         unsigned int word_size;
+        std::vector<unsigned int> shape;
         bool fortran_order;
+        size_t count() { return shape.size() == 1 ? shape[0] : shape[0] * shape[1]; }
         void destruct() {delete[] data;}
     };
     
@@ -68,13 +70,13 @@ namespace cnpy {
 
     char map_type(const std::type_info& t);
     template<typename T> std::vector<char> create_npy_header(const T* data, const unsigned int* shape, const unsigned int ndims);
-    void parse_npy_header(FILE* fp,unsigned int& word_size, unsigned int*& shape, unsigned int& ndims, bool& fortran_order);
+    void parse_npy_header(FILE* fp, char& dtype, unsigned int& word_size, unsigned int*& shape, unsigned int& ndims, bool& fortran_order);
     void parse_zip_footer(FILE* fp, unsigned short& nrecs, unsigned int& global_header_size, unsigned int& global_header_offset);
     npz_t npz_load(std::string fname);
     NpyArray npz_load(std::string fname, std::string varname);
     NpyArray npy_load(std::string fname);
     NpyArray npy_gzload(std::string fname);
-    void parse_npy_gzheader(gzFile fp,unsigned int& word_size, unsigned int*& shape, unsigned int& ndims, bool& fortran_order);
+    void parse_npy_gzheader(gzFile fp, char& dtype, unsigned int& word_size, unsigned int*& shape, unsigned int& ndims, bool& fortran_order);
 
     template<typename T> std::vector<char>& operator+=(std::vector<char>& lhs, const T rhs) {
         //write in little endian
@@ -105,7 +107,8 @@ namespace cnpy {
             unsigned int word_size, tmp_dims;
             unsigned int* tmp_shape = 0;
             bool fortran_order;
-            parse_npy_header(fp,word_size,tmp_shape,tmp_dims,fortran_order);
+            char dtype;
+            parse_npy_header(fp,dtype,word_size,tmp_shape,tmp_dims,fortran_order);
             Rassert(!fortran_order, "Data in Fortran order");
 
             if(word_size != sizeof(T)) {
